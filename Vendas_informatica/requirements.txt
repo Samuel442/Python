@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 pyodbc
 pandas
 streamlit
+=======
+pyodbc
+pandas
+streamlit
+>>>>>>> de2ec43c08390bbc4537e33210048fd70dbf69ed
 plotly
