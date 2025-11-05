@@ -1,0 +1,6 @@
+streamlit
+pandas
+psycopg2-binary
+plotly  <-- Adicione esta linha
+numpy   <-- Adicione esta linha
+supabase

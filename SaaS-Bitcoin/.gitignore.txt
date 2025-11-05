@@ -1,0 +1,11 @@
+# Python and Virtual Environment
+venv/
+__pycache__/
+*.pyc
+
+# Streamlit Secrets (MUITO IMPORTANTE!)
+.streamlit/secrets.toml
+
+# Arquivo de documentação que deve ser escondido
+Requisitos
+Requisitos.txt
