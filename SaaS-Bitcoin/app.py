@@ -92,7 +92,32 @@ except Exception as e:
 
 
 # --- 5. INÍCIO DA APLICAÇÃO STREAMLIT ---
-st.title("₿ SaaS Crypto")
+st.markdown("<h1 style='text-align: center; color: white;'>₿ SaaS Crypto</h1>", unsafe_allow_html=True)
+
+# --- FUNÇÕES DE CARREGAMENTO DE DADOS ---
+@st.cache_data(ttl=600) # Cachea os dados por 10 minutos
+def load_data_api(table_name: str) -> pd.DataFrame:
+    """Busca dados da tabela especificada no Supabase e retorna um DataFrame."""
+    try:
+        # A função 'select' é uma string vazia para selecionar todas as colunas
+        response = supabase.table(table_name).select("*").execute()
+        
+        # O data está no índice [1] da resposta
+        data = response.data
+        
+        # Converte para DataFrame do Pandas
+        df = pd.DataFrame(data)
+        
+        # Converte a coluna 'timestamp' para datetime
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        return df
+    except Exception as e:
+        st.error(f"Erro ao carregar dados da tabela '{table_name}': {e}")
+        return pd.DataFrame()
+
+# --- FIM DAS FUNÇÕES DE CARREGAMENTO ---
 
 # ----------------- ESTRUTURA DE ABAS (Baseada no Modelo BI) -----------------
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Visão Geral", "Preço e Tendências", "Adoção e Uso", "Sentimento e Notícias","Comparativos", "Relatório Semanal"])
@@ -102,10 +127,40 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Visão Geral", "Preço e Tendênc
 # ABA 1
 # ==============================================================================
 with tab1:
-   
     # Criamos uma coluna para o preço e duas colunas vazias para ocupar o espaço do BI
     col_price, col_empty1, col_empty2 = st.columns([1.5, 1, 3]) 
-    
+
+    # --- 1. CARREGAR OS DADOS ---
+    # Assume que a tabela de preços se chama 'prices_btc'
+    df_prices = load_data_api("prices_btc")
+
+    # --- 2. EXIBIR O CARTÃO DE PREÇO ---
+    with col_price:
+        if not df_prices.empty:
+            # Encontra o preço mais recente (assumindo que o DF está ordenado pelo timestamp)
+            latest_price = df_prices['price_usd'].iloc[-1]
+            
+            # Cálculo de variação (Exemplo: 24h ou último preço vs anterior)
+            # Para simplificar, vamos usar uma variação simulada de 1% por enquanto:
+            
+            # Variação real do último registro vs o penúltimo:
+            if len(df_prices) >= 2:
+                previous_price = df_prices['price_usd'].iloc[-2]
+                change_24h = (latest_price - previous_price) / previous_price
+                delta_str = f"{change_24h * 100:.2f} %"
+            else:
+                # Caso não haja dados suficientes para o cálculo
+                delta_str = "N/A" 
+                
+            # Exibir o st.metric (o seu CSS o transforma no cartão arredondado)
+            st.metric(
+                label="PREÇO ATUAL DO BITCOIN",
+                value=f"$ {latest_price:,.2f}", # Formato de moeda
+                delta=delta_str,
+                delta_color="normal" # 'normal' é verde/vermelho padrão
+            )
+        else:
+            st.warning("⚠️ Dados de preço não disponíveis. Verifique o ETL.")   
 # ==============================================================================
 # ABA 2
 # ==============================================================================
