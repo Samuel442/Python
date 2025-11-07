@@ -91,8 +91,9 @@ except Exception as e:
     st.stop()
 
 
-# --- 5. INÍCIO DA APLICAÇÃO STREAMLIT ---
+# --- Título ---
 st.markdown("<h1 style='text-align: center; color: white;'>₿ SaaS Crypto</h1>", unsafe_allow_html=True)
+
 
 # --- FUNÇÕES DE CARREGAMENTO DE DADOS ---
 @st.cache_data(ttl=600) # Cachea os dados por 10 minutos
@@ -101,66 +102,89 @@ def load_data_api(table_name: str) -> pd.DataFrame:
     try:
         # A função 'select' é uma string vazia para selecionar todas as colunas
         response = supabase.table(table_name).select("*").execute()
-        
         # O data está no índice [1] da resposta
         data = response.data
-        
         # Converte para DataFrame do Pandas
         df = pd.DataFrame(data)
-        
         # Converte a coluna 'timestamp' para datetime
         if 'timestamp' in df.columns:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
-        
         return df
     except Exception as e:
         st.error(f"Erro ao carregar dados da tabela '{table_name}': {e}")
         return pd.DataFrame()
-
 # --- FIM DAS FUNÇÕES DE CARREGAMENTO ---
 
+
+
 # ----------------- ESTRUTURA DE ABAS (Baseada no Modelo BI) -----------------
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Visão Geral", "Preço e Tendências", "Adoção e Uso", "Sentimento e Notícias","Comparativos", "Relatório Semanal"])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Visão Geral", 
+                                       "Preço e Tendências", 
+                                             "Adoção e Uso", 
+                                    "Sentimento e Notícias",
+                                             "Comparativos",
+                                        "Relatório Semanal"])
+
 
 
 # ==============================================================================
 # ABA 1
 # ==============================================================================
 with tab1:
-    # Criamos uma coluna para o preço e duas colunas vazias para ocupar o espaço do BI
-    col_price, col_empty1, col_empty2 = st.columns([1.5, 1, 3]) 
-
+    # Cria DUAS colunas para os preços (USD e BRL) e uma coluna para o espaço do BI
+    # Proporção: 1.5 para USD, 1.5 para BRL e 3 para o BI
+    col_price_usd, col_price_brl, col_empty = st.columns([1.5, 1.5, 3]) 
     # --- 1. CARREGAR OS DADOS ---
     # Assume que a tabela de preços se chama 'prices_btc'
     df_prices = load_data_api("prices_btc")
-
-    # --- 2. EXIBIR O CARTÃO DE PREÇO ---
-    with col_price:
-        if not df_prices.empty:
-            # Encontra o preço mais recente (assumindo que o DF está ordenado pelo timestamp)
-            latest_price = df_prices['price_usd'].iloc[-1]
-            
-            # Cálculo de variação (Exemplo: 24h ou último preço vs anterior)
-            # Para simplificar, vamos usar uma variação simulada de 1% por enquanto:
-            
-            # Variação real do último registro vs o penúltimo:
-            if len(df_prices) >= 2:
-                previous_price = df_prices['price_usd'].iloc[-2]
-                change_24h = (latest_price - previous_price) / previous_price
-                delta_str = f"{change_24h * 100:.2f} %"
-            else:
-                # Caso não haja dados suficientes para o cálculo
-                delta_str = "N/A" 
-                
-            # Exibir o st.metric (o seu CSS o transforma no cartão arredondado)
+    # --- 2. PREPARAÇÃO E CÁLCULO DAS MÉTRICAS ---
+    if not df_prices.empty and len(df_prices) >= 2:
+        # Preços mais recentes
+        latest_usd = df_prices['price_usd'].iloc[-1]
+        latest_brl = df_prices['price_brl'].iloc[-1]
+        # Preços anteriores (para o cálculo da variação)
+        previous_usd = df_prices['price_usd'].iloc[-2]
+        previous_brl = df_prices['price_brl'].iloc[-2]
+        # Cálculo da variação (DELTA)
+        change_usd = (latest_usd - previous_usd) / previous_usd
+        change_brl = (latest_brl - previous_brl) / previous_brl
+        delta_usd_str = f"{change_usd * 100:.2f} %"
+        delta_brl_str = f"{change_brl * 100:.2f} %"
+        # Como o cálculo do delta é o mesmo para USD e BRL (ambos refletem o movimento do BTC),
+        # podemos usar uma variável para ambos. No entanto, usaremos as específicas para maior clareza.
+        has_data = True
+    else:
+        has_data = False
+        delta_usd_str = "N/A"
+        delta_brl_str = "N/A"
+        
+    # --- 3. EXIBIR OS CARTÕES DE PREÇO ---
+    # Cartão do Dólar (USD)
+    with col_price_usd:
+        if has_data:
             st.metric(
-                label="PREÇO ATUAL DO BITCOIN",
-                value=f"$ {latest_price:,.2f}", # Formato de moeda
-                delta=delta_str,
-                delta_color="normal" # 'normal' é verde/vermelho padrão
+                label="PREÇO ATUAL (USD)",
+                value=f"$ {latest_usd:,.2f}", # Formato de moeda
+                delta=delta_usd_str,
+                delta_color="normal"
             )
         else:
-            st.warning("⚠️ Dados de preço não disponíveis. Verifique o ETL.")   
+            st.warning("⚠️ Dados de preço não disponíveis. Verifique o ETL.") 
+    # Cartão do Real (BRL)
+    with col_price_brl:
+        if has_data:
+            # Observação: A CoinGecko normalmente não usa o "milhar" no preço do BRL
+            # mas o Python usa por padrão. O BRL costuma ter vírgula para decimal.
+            st.metric(
+                label="PREÇO ATUAL (BRL)",
+                # O valor é formatado usando o locale ('.', ',' e 2 casas decimais)
+                value=f"R$ {latest_brl:,.2f}".replace(",", "_TEMP_").replace(".", ",").replace("_TEMP_", "."),
+                delta=delta_brl_str,
+                delta_color="normal" 
+            )
+        # Se não houver dados, a primeira coluna já exibiu o aviso.            
+        
+        
 # ==============================================================================
 # ABA 2
 # ==============================================================================
@@ -168,23 +192,39 @@ with tab2:
     st.header("Análise Detalhada (Para Holders)")
     st.info("Em construção: Focaremos em métricas de longo prazo, tendências de acumulação e eventos macroeconômicos.")
 
+
+
+
+
 # ==============================================================================
 # ABA 3
 # ==============================================================================
 with tab3:
     st.header("Notícias & Eventos")
     
+
+
+
+
 # ==============================================================================
 # ABA 4
 # ==============================================================================
 with tab4:
     st.header(" Notícias & Eventos")
+
+
+
     
 # ==============================================================================
 # ABA 5
 # ==============================================================================
 with tab5:
     st.header("Notícias & Eventos")
+
+
+
+
+
 
 # ==============================================================================
 # ABA 6
