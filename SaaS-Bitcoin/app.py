@@ -225,12 +225,13 @@ with tab1:
             st.warning("⚠️ Dados de preço não disponíveis.")
     with col_price_brl:
         if has_data:
+            # Mantém a formatação de BRL
             st.metric(
                 "PREÇO ATUAL (BRL)",
                 f"R$ {latest_brl:,.2f}".replace(",", "_TEMP_").replace(".", ",").replace("_TEMP_", "."),
                 delta_brl_str
             )
-    # --- Card de Capitalização de Mercado ---
+    # --- Card de Capitalização de Mercado (AGORA PADRONIZADO COM st.metric) ---
     df_market = load_data_api("market_global")
     if not df_market.empty and start_date:
         df_market = df_market[
@@ -238,35 +239,30 @@ with tab1:
             (df_market['timestamp'] <= end_date)
         ].reset_index(drop=True)
     with col_market_cap:
-        if not df_market.empty and 'total_market_cap' in df_market.columns:
+        if not df_market.empty and 'total_market_cap' in df_market.columns and len(df_market) >= 2:
             latest_market_cap = df_market['total_market_cap'].iloc[-1]
             previous_market_cap = df_market['total_market_cap'].iloc[-2]
+            # Cálculo e formatação do Delta
             change_market_cap = (latest_market_cap - previous_market_cap) / previous_market_cap
-            color = "#00FF7F" if change_market_cap > 0 else "#FF4500"
-            arrow = "⬆️" if change_market_cap > 0 else "⬇️"
+            delta_str = f"{change_market_cap * 100:,.2f}%"
+            # Formatação do Valor em Bilhões (B)
             market_cap_billions = latest_market_cap / 1_000_000_000
             value_str = f"${market_cap_billions:,.2f} B"
-            delta_str = f"{change_market_cap * 100:,.2f}%"
-            st.markdown(
-                f"""
-                <div class="rounded-box" style="padding: 15px; background-color: #2D2D2D; height: 130px; display: flex; flex-direction: column; justify-content: space-between;">
-                    <div style="color: white; font-size: 1.1em;">CAPITALIZAÇÃO DE MERCADO</div>
-                    <div style="font-size: 1.8em; font-weight: bold; color: white;">{value_str}</div>
-                    <div style="font-size: 1.2em; color: {color};">{arrow} {delta_str}</div>
-                </div>
-                """, 
-                unsafe_allow_html=True
+            # USANDO st.metric para padronização
+            st.metric(
+                "CAPITALIZAÇÃO DE MERCADO",
+                value_str,
+                delta_str
             )
         else:
             st.warning("⚠️ Dados de Capitalização de Mercado indisponíveis.")
+            
     st.markdown("---")
-
-
     # --- SEÇÃO B: KPI’s SECUNDÁRIOS (Gauge + Volume) ---
     GRAPH_HEIGHT = 250
-    # Deixa o gráfico de volume mais largo que o gauge
     col_gauge, col_volume = st.columns([1.2, 1.8])
-    # 1️⃣ Gauge (Fear & Greed)
+    
+    # Gauge (Fear & Greed)
     df_sentiment = load_data_api("sentiment")
     with col_gauge:
         if not df_sentiment.empty and 'fear_greed_index' in df_sentiment.columns:
@@ -297,29 +293,59 @@ with tab1:
             st.warning("⚠️ Dados de Sentimento indisponíveis.")
 
 
-    # 2️⃣ Volume de Negociação (Gráfico de Barras)
+    # Volume de Negociação (Gráfico de Barras) - COM CORREÇÃO E ESTILIZAÇÃO NEON
     with col_volume:
         if not df_market.empty and 'total_volume' in df_market.columns:
-            df_volume = df_market.copy()
+            # --- CORREÇÃO: AGREGAÇÃO DIÁRIA DO VOLUME ---
+            df_volume = df_market[['timestamp', 'total_volume']].copy()
+            df_volume = df_volume.set_index('timestamp')
+            df_volume_diario = df_volume.resample('D')['total_volume'].sum().reset_index()
+            df_volume_diario = df_volume_diario[df_volume_diario['total_volume'] > 0]
+            # --- PLOTAGEM COM DADOS AGREGADOS E ESTILIZAÇÃO NEON ---
+            NEON_PURPLE = "#CC33FF"
             fig_vol = go.Figure(data=[
                 go.Bar(
-                    x=df_volume['timestamp'], 
-                    y=df_volume['total_volume'], 
-                    marker_color="#00BFFF"
+                    x=df_volume_diario['timestamp'], 
+                    y=df_volume_diario['total_volume'], 
+                    # Cor roxo neon nas barras
+                    marker_color=NEON_PURPLE, 
+                    marker_line_color=NEON_PURPLE,
+                    marker_line_width=1.5,
+                    # Adiciona e posiciona o rótulo
+                    text=df_volume_diario['total_volume'],
+                    textposition='outside'
                 )
             ])
+            # Configuração do formato e cor do rótulo (branco)
+            fig_vol.update_traces(
+                texttemplate='$%{text:.2s}', 
+                textfont=dict(color="white", size=11), 
+                textangle=0,
+                cliponaxis=False 
+            )
+            # Ajustes nos eixos
+            fig_vol.update_yaxes(
+                title_text="Volume (USD)",
+                tickformat=".2s", 
+                hoverformat="$,.2f",
+                title_standoff=0
+            )
+            # Ajusta o layout para centralizar o título e alinhar a altura com o Gauge
             fig_vol.update_layout(
-                title=f"Volume de Negociação ({selected_period})",
+                title=f"Volume de Negociação Diário ({selected_period})",
+                title_x=0.2, # Centraliza o título
+                title_font_color=NEON_PURPLE, 
                 paper_bgcolor="#2D2D2D",
                 plot_bgcolor="#2D2D2D",
                 font=dict(color="white"),
-                height=GRAPH_HEIGHT,
-                margin=dict(l=20, r=20, t=40, b=30)
+                height=GRAPH_HEIGHT, # Alinha a altura com o Gauge
+                margin=dict(l=20, r=20, t=60, b=30), # Aumenta a margem superior para acomodar o rótulo
+                xaxis={'title': {'standoff': 15}, 'color': NEON_PURPLE}, 
+                yaxis={'color': NEON_PURPLE} 
             )
             st.plotly_chart(fig_vol, use_container_width=True, config={'displayModeBar': False})
         else:
             st.warning("⚠️ Dados de Volume não encontrados.")
-
  
 # ==============================================================================
 # ABA 2
