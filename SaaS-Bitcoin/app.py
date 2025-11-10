@@ -296,13 +296,13 @@ with tab1:
     # Volume de Negociação (Gráfico de Barras) - COM CORREÇÃO E ESTILIZAÇÃO NEON
     with col_volume:
         if not df_market.empty and 'total_volume' in df_market.columns:
-            # --- CORREÇÃO: AGREGAÇÃO DIÁRIA DO VOLUME ---
+            # --- AGREGAÇÃO DIÁRIA DO VOLUME ---
             df_volume = df_market[['timestamp', 'total_volume']].copy()
             df_volume = df_volume.set_index('timestamp')
             df_volume_diario = df_volume.resample('D')['total_volume'].sum().reset_index()
             df_volume_diario = df_volume_diario[df_volume_diario['total_volume'] > 0]
             # --- PLOTAGEM COM DADOS AGREGADOS E ESTILIZAÇÃO NEON ---
-            NEON_PURPLE = "#CC33FF"
+            NEON_PURPLE = "#50C878"
             fig_vol = go.Figure(data=[
                 go.Bar(
                     x=df_volume_diario['timestamp'], 
