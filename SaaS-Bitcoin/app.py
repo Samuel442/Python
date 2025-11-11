@@ -142,42 +142,44 @@ def load_data_api(table_name: str) -> pd.DataFrame:
 
 
 # --- FUNÇÃO PARA CARREGAR DADOS E FILTRO LATERAL ---
-# Dicionário de opções para o filtro lateral
 DATE_OPTIONS = {
+    "Últimas 24 Horas": 1,
     "Últimos 7 Dias": 7,
     "Últimos 30 Dias": 30,
     "Últimos 90 Dias": 90,
     "Desde o Início": 0
 }
-# --- BARRA LATERAL (st.sidebar) ---
+
+# --- BARRA LATERAL ---
 st.sidebar.markdown("## 📊 Filtros de Análise")
-# 1. Seletor de Período
+
+# 1️⃣ Seletor de Período
 selected_period = st.sidebar.selectbox(
     "Selecione o Período:",
     options=list(DATE_OPTIONS.keys()),
-    index=1 # Padrão: 30 dias
+    index=0,
+    key="selected_period"  # <-- garante que o valor seja global
 )
-# 2. Lógica para Definir o Filtro de Data
-end_date = datetime.now().replace(tzinfo=timezone.utc) 
+
+# 2️⃣ Lógica de Data
+end_date = datetime.now().replace(tzinfo=timezone.utc)
 start_date = None
+
 if selected_period == "Personalizado":
-    # Permite ao usuário escolher as datas
-    st.sidebar.markdown("---")
-    # Garantir que temos duas datas no range
+    # (Opcional) se quiser permitir intervalo manual
+    date_range = st.sidebar.date_input("Selecione o intervalo:", [])
     if len(date_range) == 2:
-        # datetime.combine transforma date_input (date) em datetime. Adicione .replace(tzinfo=timezone.utc)
         start_date = datetime.combine(date_range[0], datetime.min.time()).replace(tzinfo=timezone.utc)
-        end_date = datetime.combine(date_range[1], datetime.max.time()).replace(tzinfo=timezone.utc) 
+        end_date = datetime.combine(date_range[1], datetime.max.time()).replace(tzinfo=timezone.utc)
     else:
         st.sidebar.warning("Selecione o intervalo completo.")
-elif selected_period in DATE_OPTIONS:
+else:
     days = DATE_OPTIONS[selected_period]
     if days > 0:
-        # A subtração de timedelta é feita com tz-aware datetime
         start_date = end_date - timedelta(days=days)
     else:
         start_date = None
-# --- FIM DA BARRA LATERAL ---
+
 
 
 
@@ -348,11 +350,301 @@ with tab1:
             st.warning("⚠️ Dados de Volume não encontrados.")
  
 # ==============================================================================
-# ABA 2
+# ABA 2 - PREÇO E TENDÊNCIAS
 # ==============================================================================
 with tab2:
-    st.header("Análise Detalhada (Para Holders)")
-    st.info("Em construção: Focaremos em métricas de longo prazo, tendências de acumulação e eventos macroeconômicos.")
+    st.markdown("<h2 style='text-align:center; color:white;'>📊 Preço e Tendências</h2>", unsafe_allow_html=True)
+
+    # --- Carrega dados ---
+    df_prices = load_data_api("prices_btc")
+
+    # --- Filtragem de acordo com o filtro lateral ---
+    if not df_prices.empty and start_date:
+        df_prices = df_prices[
+            (df_prices['timestamp'] >= start_date) & 
+            (df_prices['timestamp'] <= end_date)
+        ].reset_index(drop=True)
+
+    # --- Verifica se há dados ---
+    if df_prices.empty:
+        st.warning("⚠️ Nenhum dado de preço disponível para o período selecionado.")
+    else:
+        
+        # =========================================================
+        # 🔹 SEÇÃO 1 - Correlação de Tendência (BTC/USD vs BTC/BRL)
+        # =========================================================
+        st.markdown("### 🔍 Correlação de Tendência entre BTC/USD e BTC/BRL")
+
+        # Converter timestamps para data e calcular médias diárias
+        df_prices['date'] = pd.to_datetime(df_prices['timestamp']).dt.date
+        df_avg = df_prices.groupby('date', as_index=False)[['price_usd', 'price_brl']].mean()
+
+        # Calcular variação percentual diária
+        df_avg['var_usd'] = df_avg['price_usd'].pct_change() * 100
+        df_avg['var_brl'] = df_avg['price_brl'].pct_change() * 100
+
+        # Calcular correlação
+        corr_value = df_avg[['var_usd', 'var_brl']].corr().iloc[0, 1]
+
+        # Interpretação da correlação
+        if corr_value > 0.8:
+            corr_text = "🔒 Altamente correlacionado (movem-se quase juntos)"
+            corr_color = "#00FF7F"  # verde forte
+        elif corr_value > 0.5:
+            corr_text = "📈 Moderadamente correlacionado"
+            corr_color = "#ADFF2F"  # verde limão
+        elif corr_value > 0:
+            corr_text = "⚖️ Correlação fraca"
+            corr_color = "#FFD700"  # amarelo
+        else:
+            corr_text = "🔻 Correlação negativa (movem-se em sentidos opostos)"
+            corr_color = "#FF6347"  # vermelho claro
+
+        # Gráfico de linhas — variação percentual no período
+        fig_lines = go.Figure()
+        fig_lines.add_trace(go.Scatter(
+            x=df_avg['date'], y=df_avg['var_usd'], mode='lines',
+            name='BTC/USD', line=dict(color="#00BFFF", width=2)
+        ))
+        fig_lines.add_trace(go.Scatter(
+            x=df_avg['date'], y=df_avg['var_brl'], mode='lines',
+            name='BTC/BRL', line=dict(color="#39FF14", width=2)
+        ))
+        fig_lines.update_layout(
+            title=dict(text="Tendência Diária - Variação Percentual", font=dict(color="white"), x=0.5),
+            paper_bgcolor="#2D2D2D", plot_bgcolor="#2D2D2D",
+            font=dict(color="white"), height=300,
+            margin=dict(l=40, r=40, t=50, b=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_lines, use_container_width=True, config={'displayModeBar': False})
+
+        # --- Heatmap pequeno, didático e simétrico ---
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown(
+                "<h5 style='text-align:center; color:white;'>🧭 Correlação BTC/USD × BTC/BRL</h5>",
+                unsafe_allow_html=True
+            )
+
+            fig_heatmap = go.Figure(data=go.Heatmap(
+                z=[[corr_value]],
+                x=["BTC/USD"],
+                y=["BTC/BRL"],
+                colorscale=[[0, "#FF6347"], [0.5, "#FFD700"], [1, "#00FF7F"]],
+                zmin=-1, zmax=1,
+                showscale=True,
+                colorbar=dict(
+                    tickvals=[-1, 0, 1],
+                    ticktext=["-1 (oposto)", "0 (sem relação)", "+1 (juntos)"],
+                    title="Correlação"
+                ),
+                text=[[f"{corr_value:.2f}"]],
+                texttemplate="%{text}",
+                textfont={"color": "black", "size": 16}
+            ))
+
+            fig_heatmap.update_layout(
+                paper_bgcolor="#2D2D2D",
+                plot_bgcolor="#2D2D2D",
+                font=dict(color="white"),
+                xaxis=dict(showgrid=False, showticklabels=True),
+                yaxis=dict(showgrid=False, showticklabels=True),
+                height=260,
+                width=500,
+                margin=dict(l=60, r=60, t=40, b=20)
+            )
+
+            st.plotly_chart(fig_heatmap, use_container_width=False)
+
+            st.markdown(
+                f"<p style='text-align:center; color:{corr_color}; font-size:16px; font-weight:500;'>{corr_text}</p>",
+                unsafe_allow_html=True
+            )
+
+        st.markdown("---")
+
+
+
+
+
+        # ========================================
+        # 📈 SEÇÃO 2 - Gráfico principal (linha)
+        # ========================================
+        fig_line = go.Figure()
+
+        fig_line.add_trace(go.Scatter(
+            x=df_prices['timestamp'],
+            y=df_prices['price_usd'],
+            mode='lines+markers',
+            name='BTC/USD',
+            line=dict(color="#00BFFF", width=2),
+            marker=dict(size=4)
+        ))
+
+        fig_line.add_trace(go.Scatter(
+            x=df_prices['timestamp'],
+            y=df_prices['price_brl'],
+            mode='lines+markers',
+            name='BTC/BRL',
+            line=dict(color="#39FF14", width=2),
+            marker=dict(size=4)
+        ))
+
+        fig_line.update_layout(
+            title="Evolução do Preço (USD vs BRL)",
+            paper_bgcolor="#2D2D2D",
+            plot_bgcolor="#2D2D2D",
+            font=dict(color="white"),
+            height=400,
+            margin=dict(l=40, r=40, t=60, b=40),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+        )
+        st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
+
+        # =========================================================
+        # 💰 SEÇÃO 3 - Variação de preço no período selecionado
+        # =========================================================
+
+        # Obtém o período selecionado no filtro global
+        selected_period = st.session_state.get("selected_period", "Últimas 24 Horas")
+
+        # Define o título e o número de dias conforme o filtro
+        if selected_period == "Últimas 24 Horas":
+            label = "💰 Variação Diária (24h)"
+            days = 1
+        elif selected_period == "Últimos 7 Dias":
+            label = "💰 Variação Semanal (7 dias)"
+            days = 7
+        elif selected_period == "Últimos 30 Dias":
+            label = "💰 Variação Mensal (30 dias)"
+            days = 30
+        elif selected_period == "Últimos 90 Dias":
+            label = "💰 Variação Trimestral (90 dias)"
+            days = 90
+        elif selected_period == "Desde o Início":
+            label = "💰 Variação Acumulada (Desde o Início)"
+            days = None
+        else:
+            label = "💰 Variação de Preço"
+            days = None
+
+        st.markdown(f"### {label}")
+
+        # Determina o intervalo de dados com base no filtro
+        if not df_prices.empty:
+            end_date = df_prices['timestamp'].max()
+
+            if days is not None:
+                start_date = end_date - timedelta(days=days)
+                df_period = df_prices[(df_prices['timestamp'] >= start_date) & (df_prices['timestamp'] <= end_date)]
+            else:
+                df_period = df_prices.copy()  # Pega tudo se for "Desde o Início"
+
+            if not df_period.empty:
+                # Calcula o maior e menor preço no período
+                high_price = df_period['price_usd'].max()
+                low_price = df_period['price_usd'].min()
+
+                # Calcula a diferença percentual para exibir como delta
+                first_price = df_period['price_usd'].iloc[0]
+                delta_high = ((high_price - first_price) / first_price) * 100
+                delta_low = ((low_price - first_price) / first_price) * 100
+
+                # Exibe os cards de métrica com setas
+                col_high, col_low = st.columns(2)
+                with col_high:
+                    st.metric(
+                        label="Maior preço",
+                        value=f"$ {high_price:,.2f}",
+                        delta=f"{delta_high:+.2f}%",
+                        delta_color="normal"  # seta verde para positivo, vermelha para negativo
+                    )
+                with col_low:
+                    st.metric(
+                        label="Menor preço",
+                        value=f"$ {low_price:,.2f}",
+                        delta=f"{delta_low:+.2f}%",
+                        delta_color="inverse"  # inverte: seta vermelha pra baixo
+                    )
+            else:
+                st.warning("⚠️ Sem dados disponíveis para o período selecionado.")
+        else:
+            st.warning("⚠️ Dados de preços não encontrados.")
+
+        st.markdown("---")
+
+
+
+
+        # =========================================================
+        # 💹 SEÇÃO 4 - Comparação BTC/USD vs BTC/BRL (barras duplas)
+        # =========================================================
+        st.markdown("### 💹 Comparação BTC/USD vs BTC/BRL")
+
+        # Converter timestamps para data e calcular médias diárias
+        df_prices['date'] = pd.to_datetime(df_prices['timestamp']).dt.date
+        df_avg = df_prices.groupby('date', as_index=False)[['price_usd', 'price_brl']].mean()
+
+        # Criar gráfico de barras duplas com rótulos
+        fig_compare = go.Figure(data=[
+            go.Bar(
+                name='BTC/USD',
+                x=df_avg['date'],
+                y=df_avg['price_usd'],
+                text=[f"$ {v:,.2f}" for v in df_avg['price_usd']],  # adiciona valores formatados
+                textposition='outside',  # pode ser 'outside', 'auto', ou 'inside'
+                marker_color="#00BFFF"
+            ),
+            go.Bar(
+                name='BTC/BRL',
+                x=df_avg['date'],
+                y=df_avg['price_brl'],
+                text=[f"R$ {v:,.2f}" for v in df_avg['price_brl']],
+                textposition='outside',
+                marker_color="#39FF14"
+            )
+        ])
+
+        # Configuração do layout e rótulos
+        fig_compare.update_layout(
+            title=dict(
+                text="Comparação do Preço Médio Diário do Bitcoin em USD e BRL",
+                font=dict(size=16, color="white"),
+                x=0.5,
+            ),
+            xaxis=dict(
+                title=dict(text="Data", font=dict(color="white")),
+                tickfont=dict(color="white")
+            ),
+            yaxis=dict(
+                title=dict(text="Preço Médio", font=dict(color="white")),
+                tickfont=dict(color="white"),
+                showgrid=True,
+                gridcolor="#444444"
+            ),
+            barmode='group',
+            paper_bgcolor="#2D2D2D",
+            plot_bgcolor="#2D2D2D",
+            font=dict(color="white"),
+            height=450,
+            margin=dict(l=40, r=40, t=60, b=40),
+            legend=dict(
+                title="Cotação",
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="center",
+                x=0.5
+            )
+        )
+
+        # Exibir gráfico
+        st.plotly_chart(fig_compare, use_container_width=True, config={'displayModeBar': False})
+
+
+
+
 
 
 
