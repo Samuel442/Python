@@ -149,22 +149,18 @@ DATE_OPTIONS = {
     "Últimos 90 Dias": 90,
     "Desde o Início": 0
 }
-
 # --- BARRA LATERAL ---
 st.sidebar.markdown("## 📊 Filtros de Análise")
-
-# 1️⃣ Seletor de Período
+# Seletor de Período
 selected_period = st.sidebar.selectbox(
     "Selecione o Período:",
     options=list(DATE_OPTIONS.keys()),
     index=0,
     key="selected_period"  # <-- garante que o valor seja global
 )
-
-# 2️⃣ Lógica de Data
+# Lógica de Data
 end_date = datetime.now().replace(tzinfo=timezone.utc)
 start_date = None
-
 if selected_period == "Personalizado":
     # (Opcional) se quiser permitir intervalo manual
     date_range = st.sidebar.date_input("Selecione o intervalo:", [])
@@ -257,13 +253,12 @@ with tab1:
                 delta_str
             )
         else:
-            st.warning("⚠️ Dados de Capitalização de Mercado indisponíveis.")
-            
+            st.warning("⚠️ Dados de Capitalização de Mercado indisponíveis.")   
     st.markdown("---")
+    
     # --- SEÇÃO B: KPI’s SECUNDÁRIOS (Gauge + Volume) ---
     GRAPH_HEIGHT = 250
     col_gauge, col_volume = st.columns([1.2, 1.8])
-    
     # Gauge (Fear & Greed)
     df_sentiment = load_data_api("sentiment")
     with col_gauge:
@@ -349,43 +344,34 @@ with tab1:
         else:
             st.warning("⚠️ Dados de Volume não encontrados.")
  
+ 
 # ==============================================================================
 # ABA 2 - PREÇO E TENDÊNCIAS
 # ==============================================================================
 with tab2:
     st.markdown("<h2 style='text-align:center; color:white;'>📊 Preço e Tendências</h2>", unsafe_allow_html=True)
-
     # --- Carrega dados ---
     df_prices = load_data_api("prices_btc")
-
     # --- Filtragem de acordo com o filtro lateral ---
     if not df_prices.empty and start_date:
         df_prices = df_prices[
             (df_prices['timestamp'] >= start_date) & 
             (df_prices['timestamp'] <= end_date)
         ].reset_index(drop=True)
-
     # --- Verifica se há dados ---
     if df_prices.empty:
         st.warning("⚠️ Nenhum dado de preço disponível para o período selecionado.")
     else:
-        
-        # =========================================================
-        # 🔹 SEÇÃO 1 - Correlação de Tendência (BTC/USD vs BTC/BRL)
-        # =========================================================
+        # SEÇÃO 1 - Correlação de Tendência (BTC/USD vs BTC/BRL)
         st.markdown("### 🔍 Correlação de Tendência entre BTC/USD e BTC/BRL")
-
         # Converter timestamps para data e calcular médias diárias
         df_prices['date'] = pd.to_datetime(df_prices['timestamp']).dt.date
         df_avg = df_prices.groupby('date', as_index=False)[['price_usd', 'price_brl']].mean()
-
         # Calcular variação percentual diária
         df_avg['var_usd'] = df_avg['price_usd'].pct_change() * 100
         df_avg['var_brl'] = df_avg['price_brl'].pct_change() * 100
-
         # Calcular correlação
         corr_value = df_avg[['var_usd', 'var_brl']].corr().iloc[0, 1]
-
         # Interpretação da correlação
         if corr_value > 0.8:
             corr_text = "🔒 Altamente correlacionado (movem-se quase juntos)"
@@ -399,7 +385,6 @@ with tab2:
         else:
             corr_text = "🔻 Correlação negativa (movem-se em sentidos opostos)"
             corr_color = "#FF6347"  # vermelho claro
-
         # Gráfico de linhas — variação percentual no período
         fig_lines = go.Figure()
         fig_lines.add_trace(go.Scatter(
@@ -418,7 +403,6 @@ with tab2:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
         )
         st.plotly_chart(fig_lines, use_container_width=True, config={'displayModeBar': False})
-
         # --- Heatmap pequeno, didático e simétrico ---
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -426,7 +410,6 @@ with tab2:
                 "<h5 style='text-align:center; color:white;'>🧭 Correlação BTC/USD × BTC/BRL</h5>",
                 unsafe_allow_html=True
             )
-
             fig_heatmap = go.Figure(data=go.Heatmap(
                 z=[[corr_value]],
                 x=["BTC/USD"],
@@ -443,7 +426,6 @@ with tab2:
                 texttemplate="%{text}",
                 textfont={"color": "black", "size": 16}
             ))
-
             fig_heatmap.update_layout(
                 paper_bgcolor="#2D2D2D",
                 plot_bgcolor="#2D2D2D",
@@ -454,25 +436,18 @@ with tab2:
                 width=500,
                 margin=dict(l=60, r=60, t=40, b=20)
             )
-
             st.plotly_chart(fig_heatmap, use_container_width=False)
-
             st.markdown(
                 f"<p style='text-align:center; color:{corr_color}; font-size:16px; font-weight:500;'>{corr_text}</p>",
                 unsafe_allow_html=True
             )
-
         st.markdown("---")
 
 
 
 
-
-        # ========================================
-        # 📈 SEÇÃO 2 - Gráfico principal (linha)
-        # ========================================
+        # SEÇÃO 2 - Gráfico principal (linha)
         fig_line = go.Figure()
-
         fig_line.add_trace(go.Scatter(
             x=df_prices['timestamp'],
             y=df_prices['price_usd'],
@@ -481,7 +456,6 @@ with tab2:
             line=dict(color="#00BFFF", width=2),
             marker=dict(size=4)
         ))
-
         fig_line.add_trace(go.Scatter(
             x=df_prices['timestamp'],
             y=df_prices['price_brl'],
@@ -490,7 +464,6 @@ with tab2:
             line=dict(color="#39FF14", width=2),
             marker=dict(size=4)
         ))
-
         fig_line.update_layout(
             title="Evolução do Preço (USD vs BRL)",
             paper_bgcolor="#2D2D2D",
@@ -502,13 +475,10 @@ with tab2:
         )
         st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
 
-        # =========================================================
-        # 💰 SEÇÃO 3 - Variação de preço no período selecionado
-        # =========================================================
 
+        # SEÇÃO 3 - Variação de preço no período selecionado
         # Obtém o período selecionado no filtro global
         selected_period = st.session_state.get("selected_period", "Últimas 24 Horas")
-
         # Define o título e o número de dias conforme o filtro
         if selected_period == "Últimas 24 Horas":
             label = "💰 Variação Diária (24h)"
@@ -528,29 +498,23 @@ with tab2:
         else:
             label = "💰 Variação de Preço"
             days = None
-
         st.markdown(f"### {label}")
-
         # Determina o intervalo de dados com base no filtro
         if not df_prices.empty:
             end_date = df_prices['timestamp'].max()
-
             if days is not None:
                 start_date = end_date - timedelta(days=days)
                 df_period = df_prices[(df_prices['timestamp'] >= start_date) & (df_prices['timestamp'] <= end_date)]
             else:
                 df_period = df_prices.copy()  # Pega tudo se for "Desde o Início"
-
             if not df_period.empty:
                 # Calcula o maior e menor preço no período
                 high_price = df_period['price_usd'].max()
                 low_price = df_period['price_usd'].min()
-
                 # Calcula a diferença percentual para exibir como delta
                 first_price = df_period['price_usd'].iloc[0]
                 delta_high = ((high_price - first_price) / first_price) * 100
                 delta_low = ((low_price - first_price) / first_price) * 100
-
                 # Exibe os cards de métrica com setas
                 col_high, col_low = st.columns(2)
                 with col_high:
@@ -571,21 +535,14 @@ with tab2:
                 st.warning("⚠️ Sem dados disponíveis para o período selecionado.")
         else:
             st.warning("⚠️ Dados de preços não encontrados.")
-
         st.markdown("---")
 
 
-
-
-        # =========================================================
-        # 💹 SEÇÃO 4 - Comparação BTC/USD vs BTC/BRL (barras duplas)
-        # =========================================================
+        # SEÇÃO 4 - Comparação BTC/USD vs BTC/BRL (barras duplas)
         st.markdown("### 💹 Comparação BTC/USD vs BTC/BRL")
-
         # Converter timestamps para data e calcular médias diárias
         df_prices['date'] = pd.to_datetime(df_prices['timestamp']).dt.date
         df_avg = df_prices.groupby('date', as_index=False)[['price_usd', 'price_brl']].mean()
-
         # Criar gráfico de barras duplas com rótulos
         fig_compare = go.Figure(data=[
             go.Bar(
@@ -605,7 +562,6 @@ with tab2:
                 marker_color="#39FF14"
             )
         ])
-
         # Configuração do layout e rótulos
         fig_compare.update_layout(
             title=dict(
@@ -638,10 +594,8 @@ with tab2:
                 x=0.5
             )
         )
-
         # Exibir gráfico
         st.plotly_chart(fig_compare, use_container_width=True, config={'displayModeBar': False})
-
 
 
 
@@ -655,16 +609,139 @@ with tab2:
 # ==============================================================================
 with tab3:
     st.header("Em breve")
-    
 
 
 
 
-# ==============================================================================
-# ABA 4
-# ==============================================================================
+
+# =========================================================
+# 🧠 ABA 4 - Sentimento e Notícias
+# =========================================================
 with tab4:
-    st.header("Em breve")
+    st.markdown("## 🧠 Sentimento e Notícias do Mercado")
+    # 🎯 SEÇÃO 1 - Sentimento (Fear & Greed Index)
+    st.markdown("### 📊 Índice de Medo e Ganância (Fear & Greed)")
+    try:
+        # Assumindo que o df_sentiment já foi carregado e tem os timestamps corretos
+        df_sentiment = load_data_api("sentiment")
+        if not df_sentiment.empty:
+            # Filtro usando as datas globais (start_date e end_date) que são UTC
+            df_sentiment = df_sentiment[
+                (df_sentiment["timestamp"] >= start_date) &
+                (df_sentiment["timestamp"] <= end_date)
+            ].reset_index(drop=True)
+            # A conversão de pd.to_datetime é feita na load_data_api, mantido.
+            if not df_sentiment.empty:
+                # Última linha (sentimento mais recente)
+                last_row = df_sentiment.iloc[-1]
+                last_value = last_row["fear_greed_index"]
+                last_text = last_row["sentiment_text"]
+                # Formata a data: Converte o timestamp UTC para o horário local do Brasil (BRT)
+                last_time = last_row["timestamp"].tz_convert('America/Sao_Paulo').strftime("%d/%m/%Y %H:%M:%S (BRT)") # Exemplo de conversão
+                # Tradução automática e ícones do sentimento
+                if last_value <= 25:
+                    emoji = "😱"
+                    level_pt = "Medo Extremo"
+                    color = "#FF4C4C"
+                elif last_value <= 50:
+                    emoji = "😟"
+                    level_pt = "Medo"
+                    color = "#FFA500"
+                elif last_value <= 75:
+                    emoji = "😌"
+                    level_pt = "Ganância"
+                    color = "#39FF14"
+                else:
+                    emoji = "🚀"
+                    level_pt = "Ganância Extrema"
+                    color = "#00FF7F"
+
+                # --- Card interpretativo (Mantido como você customizou) ---
+                st.markdown(
+                    f"""
+                    <div style='background-color:{color}22; border: 1px solid {color};
+                        border-radius:12px; padding:15px; text-align:center; margin-bottom:20px;'>
+                        <h3 style='color:{color}; margin:0;'> {emoji} {level_pt} </h3>
+                        <p style='color:white; margin:5px 0 0;'>
+                            O índice atual é <b>{last_value:.0f}</b> ({last_text}).
+                            <br>Atualizado em <b>{last_time}</b>.
+                        </p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                # --- Gráfico de evolução ---
+                fig_sentiment = px.line(
+                    df_sentiment,
+                    x="timestamp",
+                    y="fear_greed_index",
+                    markers=True,
+                    title="Evolução do Índice de Sentimento"
+                )
+
+                # 1. Ajuste dos nomes dos EIXOS (títulos)
+                fig_sentiment.update_layout(
+                    # CORREÇÃO APLICADA AQUI: MUDAR O TÍTULO DO EIXO X PARA BRT
+                    xaxis_title="Data e Hora (BRT)", 
+                    # --- FIM DA CORREÇÃO ---
+                    yaxis_title="Índice (0 = Medo, 100 = Ganância)", 
+                    title_x=0.5,
+                    title_font=dict(color="#00BFFF"), # Cor neon no título
+                    plot_bgcolor="#2D2D2D",
+                    paper_bgcolor="#2D2D2D",
+                    font=dict(color="white"),
+                    height=350,
+                    margin=dict(l=20, r=20, t=60, b=40)
+                )
+                
+                # 2. Ajuste na exibição do Eixo X (data/hora)
+                fig_sentiment.update_xaxes(
+                    tickformat="%d/%m/%Y %H:%M", # Formato de exibição mais claro
+                    showgrid=True,
+                    gridcolor='#444444'
+                )
+                
+                # Adiciona as faixas de sentimento como fundo (cores mantidas)
+                fig_sentiment.add_hrect(y0=0, y1=25, fillcolor="#8B0000", opacity=0.1, layer="below", line_width=0, annotation_text="Medo Extremo")
+                fig_sentiment.add_hrect(y0=25, y1=50, fillcolor="#CC0000", opacity=0.1, layer="below", line_width=0, annotation_text="Medo")
+                fig_sentiment.add_hrect(y0=50, y1=75, fillcolor="#009900", opacity=0.1, layer="below", line_width=0, annotation_text="Ganância")
+                fig_sentiment.add_hrect(y0=75, y1=100, fillcolor="#006400", opacity=0.1, layer="below", line_width=0, annotation_text="Ganância Extrema")
+                st.plotly_chart(fig_sentiment, use_container_width=True)
+            else:
+                st.warning("⚠️ Nenhum dado de sentimento disponível para o período selecionado.")
+        else:
+            st.warning("⚠️ Dados de sentimento não encontrados.")
+    except Exception as e:
+        st.error(f"Erro ao carregar sentimento: {e}")
+    st.markdown("---")
+
+    # 📰 SEÇÃO 2 - Últimas Notícias de Mercado
+    st.markdown("### 📰 Últimas Notícias de Mercado")
+    try:
+        df_news = load_data_api("news_events")
+        if not df_news.empty:
+            df_news["date"] = pd.to_datetime(df_news["date"])
+            df_news = df_news.sort_values("date", ascending=False).head(5)
+            for _, row in df_news.iterrows():
+                headline = row["headline"]
+                source = row["source"]
+                link = row["link"]
+                date = row["date"].strftime("%d/%m/%Y")
+                st.markdown(
+                    f"""
+                    <div style='background-color:#2F2F2F; padding:10px 15px; border-radius:8px; margin-bottom:8px;'>
+                        <b style='color:#00BFFF;'>{source.upper()}</b>: 
+                        <a href='{link}' target='_blank' style='color:#FFD700; text-decoration:none;'>{headline}</a><br>
+                        <span style='color:#AAAAAA;'>📅 {date} | 🗞️ {source}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.warning("⚠️ Nenhuma notícia disponível no momento.")
+    except Exception as e:
+        st.error(f"Erro ao carregar notícias: {e}")
 
 
 
