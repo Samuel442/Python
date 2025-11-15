@@ -3,7 +3,6 @@ import pandas as pd
 from supabase import create_client, Client
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
 from datetime import datetime, timedelta, timezone 
 
 
@@ -108,7 +107,7 @@ st.markdown("""
         margin-bottom: 25px;
     }
     </style>
-    <h1 class="neon-title">₿ SaaS Crypto</h1>
+    <h1 class="neon-title">₿ SaaS Bitcoin</h1>
 """, unsafe_allow_html=True)
 
 
@@ -146,8 +145,7 @@ DATE_OPTIONS = {
     "Últimas 24 Horas": 1,
     "Últimos 7 Dias": 7,
     "Últimos 30 Dias": 30,
-    "Últimos 90 Dias": 90,
-    "Desde o Início": 0
+    "Últimos 90 Dias": 90
 }
 # --- BARRA LATERAL ---
 st.sidebar.markdown("## 📊 Filtros de Análise")
@@ -155,7 +153,7 @@ st.sidebar.markdown("## 📊 Filtros de Análise")
 selected_period = st.sidebar.selectbox(
     "Selecione o Período:",
     options=list(DATE_OPTIONS.keys()),
-    index=0,
+    index=3,
     key="selected_period"  # <-- garante que o valor seja global
 )
 # Lógica de Data
@@ -290,7 +288,7 @@ with tab1:
             st.warning("⚠️ Dados de Sentimento indisponíveis.")
 
 
-    # Volume de Negociação (Gráfico de Barras) - COM CORREÇÃO E ESTILIZAÇÃO NEON
+    # Volume de Negociação (Gráfico de Barras) 
     with col_volume:
         if not df_market.empty and 'total_volume' in df_market.columns:
             # --- AGREGAÇÃO DIÁRIA DO VOLUME ---
@@ -442,10 +440,6 @@ with tab2:
                 unsafe_allow_html=True
             )
         st.markdown("---")
-
-
-
-
         # SEÇÃO 2 - Gráfico principal (linha)
         fig_line = go.Figure()
         fig_line.add_trace(go.Scatter(
@@ -474,8 +468,6 @@ with tab2:
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
         )
         st.plotly_chart(fig_line, use_container_width=True, config={'displayModeBar': False})
-
-
         # SEÇÃO 3 - Variação de preço no período selecionado
         # Obtém o período selecionado no filtro global
         selected_period = st.session_state.get("selected_period", "Últimas 24 Horas")
@@ -536,8 +528,6 @@ with tab2:
         else:
             st.warning("⚠️ Dados de preços não encontrados.")
         st.markdown("---")
-
-
         # SEÇÃO 4 - Comparação BTC/USD vs BTC/BRL (barras duplas)
         st.markdown("### 💹 Comparação BTC/USD vs BTC/BRL")
         # Converter timestamps para data e calcular médias diárias
@@ -598,17 +588,20 @@ with tab2:
         st.plotly_chart(fig_compare, use_container_width=True, config={'displayModeBar': False})
 
 
-
-
-
-
-
-
-# ==============================================================================
-# ABA 3
-# ==============================================================================
+# ================================================================
+# 📌 ABA 3 — Adoção e Uso
+# ================================================================
 with tab3:
-    st.header("Em breve")
+
+    st.markdown("<h2 style='text-align:center; color:white;'>Em breve</h2>", unsafe_allow_html=True)
+    st.write("")
+
+
+    
+
+
+
+
 
 
 
@@ -670,7 +663,6 @@ with tab4:
                     """,
                     unsafe_allow_html=True
                 )
-
                 # --- Gráfico de evolução ---
                 fig_sentiment = px.line(
                     df_sentiment,
@@ -679,7 +671,6 @@ with tab4:
                     markers=True,
                     title="Evolução do Índice de Sentimento"
                 )
-
                 # 1. Ajuste dos nomes dos EIXOS (títulos)
                 fig_sentiment.update_layout(
                     # CORREÇÃO APLICADA AQUI: MUDAR O TÍTULO DO EIXO X PARA BRT
@@ -694,14 +685,12 @@ with tab4:
                     height=350,
                     margin=dict(l=20, r=20, t=60, b=40)
                 )
-                
                 # 2. Ajuste na exibição do Eixo X (data/hora)
                 fig_sentiment.update_xaxes(
                     tickformat="%d/%m/%Y %H:%M", # Formato de exibição mais claro
                     showgrid=True,
                     gridcolor='#444444'
                 )
-                
                 # Adiciona as faixas de sentimento como fundo (cores mantidas)
                 fig_sentiment.add_hrect(y0=0, y1=25, fillcolor="#8B0000", opacity=0.1, layer="below", line_width=0, annotation_text="Medo Extremo")
                 fig_sentiment.add_hrect(y0=25, y1=50, fillcolor="#CC0000", opacity=0.1, layer="below", line_width=0, annotation_text="Medo")
@@ -746,17 +735,255 @@ with tab4:
 
 
     
+
+
+
 # ==============================================================================
-# ABA 5
+# ABA 5 - COMPARATIVOS (Versão Final e Corrigida)
 # ==============================================================================
 with tab5:
-    st.header("Em breve")
+    st.markdown("## 🧭 Comparativos e Contexto de Mercado")
+    st.markdown("O objetivo desta seção é contextualizar o Bitcoin em relação ao mercado cripto mais amplo e a ativos tradicionais.")
+    # CORREÇÃO DE ESCOPO: Carrega dados diários do BTC para uso em toda a aba
+    try:
+        # Tenta carregar os dados do BTC
+        df_btc_daily = load_data_api("prices_btc")
+        # Garante que as colunas essenciais estejam no formato correto
+        df_btc_daily['timestamp'] = pd.to_datetime(df_btc_daily['timestamp'], errors='coerce').dt.normalize()
+        df_btc_daily['price_usd'] = pd.to_numeric(df_btc_daily['price_usd'], errors='coerce')
+        df_btc_daily.dropna(subset=['timestamp', 'price_usd'], inplace=True)
+    except Exception as e:
+        # Fallback para evitar NameError
+        df_btc_daily = pd.DataFrame({'timestamp': [], 'price_usd': []})
+        st.error(f"FATAL: Não foi possível carregar 'df_btc_daily' para a Aba 5: {e}")
+    # Inicializa um DataFrame vazio para a Seção 2, caso o carregamento falhe
+    crypto_df = pd.DataFrame({'date': [], 'symbol': [], 'close': []})
 
+    # 1. Dominância do Bitcoin no Mercado Cripto
+    st.markdown("### 👑 1. Dominância do Bitcoin no Mercado Cripto")
+    try:
+        # Carrega dados de mercado global
+        df_market = load_data_api("market_global")
+        # Assegura que start_date e end_date estejam sem timezone para o filtro
+        start_date_ts = pd.to_datetime(start_date).tz_localize(None)
+        end_date_ts = pd.to_datetime(end_date).tz_localize(None)
+        if not df_market.empty:
+            df_market['timestamp'] = pd.to_datetime(df_market['timestamp'], errors='coerce').dt.tz_localize(None)
+            df_dominance = df_market[
+                (df_market["timestamp"] >= start_date_ts) &
+                (df_market["timestamp"] <= end_date_ts)
+            ].copy()
+            if 'btc_dominance' in df_dominance.columns and not df_dominance.empty:
+                latest_dominance = df_dominance['btc_dominance'].iloc[-1]
+                if len(df_dominance) >= 2:
+                    previous_dominance = df_dominance['btc_dominance'].iloc[-2]
+                    delta_dominance = latest_dominance - previous_dominance
+                    delta_str = f"{delta_dominance:+.2f} pts"
+                else:
+                    delta_str = "N/A"
+                st.metric(
+                    label="DOMINÂNCIA ATUAL DO BTC", 
+                    value=f"{latest_dominance:.2f} %",
+                    delta=delta_str,
+                    delta_color="normal" 
+                )
+                fig_dominance = px.line(
+                    df_dominance, x="timestamp", y="btc_dominance",
+                    title="Evolução da Dominância do Bitcoin (BTC Dominance)",
+                    labels={"timestamp": "Data e Hora", "btc_dominance": "Dominância (%)"}
+                )
+                fig_dominance.update_layout(title_x=0.5, title_font=dict(color="#00BFFF"), plot_bgcolor="#2D2D2D", paper_bgcolor="#2D2D2D", font=dict(color="white"), height=380, margin=dict(l=20, r=20, t=60, b=40))
+                fig_dominance.update_traces(line=dict(color="#FFD700", width=2))
+                fig_dominance.update_yaxes(range=[0, 100], tickformat=".2f", showgrid=True, gridcolor='#444444')
+                st.plotly_chart(fig_dominance, use_container_width=True)
+            else:
+                st.warning("⚠️ Coluna 'btc_dominance' não encontrada ou dados insuficientes.")
+        else:
+            st.warning("⚠️ Dados de mercado global não encontrados.")
+    except Exception as e:
+        st.error(f"Erro ao carregar Dominância do BTC: {e}")
+    st.markdown("---")
+    # PREPARAÇÃO DE DADOS: Carregamento, Renomeação e Unificação (BTC + Altcoins)
+    try:
+        # 1. Carrega dados das Altcoins. Usa df_btc_daily carregado acima
+        altcoins_df = load_data_api("altcoin_prices") 
+        btc_df = df_btc_daily.copy() # Usa o DataFrame já carregado
+        # --- Processamento BTC ---
+        btc_df = btc_df.rename(columns={'price_usd': 'close', 'timestamp': 'date'})
+        btc_df['symbol'] = 'BTC'
+        btc_df = btc_df[['date', 'symbol', 'close']]
+        # --- Processamento Altcoins ---
+        if not altcoins_df.empty:
+            altcoins_df = altcoins_df.rename(columns={'timestamp': 'date'})
+            crypto_df_altcoins = pd.melt(
+                altcoins_df,
+                id_vars=['date'],
+                value_vars=['eth_usd', 'bnb_usd', 'usdt_usd'],
+                var_name='symbol',
+                value_name='close'
+            )
+            crypto_df_altcoins['symbol'] = crypto_df_altcoins['symbol'].str.split('_').str[0].str.upper()
+            crypto_df = pd.concat([btc_df, crypto_df_altcoins], ignore_index=True)
+            
+        else:
+            crypto_df = btc_df.copy() 
+    except Exception as e:
+        st.warning(f"⚠️ Erro na preparação dos dados para o comparativo (Verifique as chaves 'altcoin_prices'): {e}")
+        crypto_df = pd.DataFrame({'date': [], 'symbol': [], 'close': []}) 
+    # 2. Bitcoin vs. Principais Altcoins (ETH, USDT, BNB)
+    st.markdown("### 💰 2 Bitcoin vs. Principais Altcoins (ETH, USDT, BNB)")
+    try:
+        # Assegura que start_date e end_date estejam sem timezone para o filtro
+        start_date_ts = pd.to_datetime(start_date).tz_localize(None)
+        end_date_ts = pd.to_datetime(end_date).tz_localize(None)
+        if not crypto_df.empty:
+            crypto_df['date'] = pd.to_datetime(crypto_df['date'], errors='coerce').dt.tz_localize(None)
+            # Filtragem inicial
+            filtered_df = crypto_df[
+                (crypto_df['date'] >= start_date_ts) & (crypto_df['date'] <= end_date_ts)
+            ].copy() 
+            
+            # RE-AMOSTRAGEM (SUAVIZAÇÃO) DOS DADOS PARA FREQUÊNCIA DIÁRIA
+            if not filtered_df.empty:
+                filtered_df = filtered_df.set_index('date') 
+                filtered_df_resampled = filtered_df.groupby('symbol')['close'].resample('D').last().reset_index()
+                filtered_df = filtered_df_resampled.dropna(subset=['close'])
+                filtered_df.sort_values(by=['symbol', 'date'], inplace=True) 
+        else:
+            filtered_df = pd.DataFrame()
+        if filtered_df.empty:
+            st.warning("⚠️ Não há dados suficientes no período selecionado para a comparação após a suavização dos dados.")
+        else:
+            # CÁLCULO: NORMALIZAÇÃO DOS DADOS PARA COMPARAR DESEMPENHO (Base 100)
+            initial_prices = filtered_df.groupby('symbol')['close'].first().reset_index()
+            initial_prices.rename(columns={'close': 'initial_close'}, inplace=True)
+            df_normalized = filtered_df.merge(initial_prices, on='symbol')
+            # Calcula o Retorno Normalizado (Base 100)
+            df_normalized['normalized_price'] = (
+                df_normalized['close'] / df_normalized['initial_close']
+            ) * 100
+            crypto_filtered = df_normalized
+            
+            # --- Gráfico de Desempenho Normalizado ---
+            fig_altcoin = px.line(
+                crypto_filtered,
+                x='date',
+                y='normalized_price',
+                color='symbol',
+                title='Comparativo de Desempenho: Bitcoin vs Altcoins (Base 100)',
+                labels={'date': 'Data', 'normalized_price': 'Retorno Normalizado (Base 100)', 'symbol': 'Criptomoeda'}
+            )
+            fig_altcoin.update_layout(
+                xaxis_title="Data",
+                yaxis_title="Retorno Normalizado (Base 100)",
+                legend_title="Criptomoeda"
+            )
+            st.plotly_chart(fig_altcoin, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro ao carregar comparação de Altcoins: {e}")
 
-
-
-
-
+    # 🏛️ 3. Bitcoin vs. Ouro e S&P 500
+    st.markdown("### 🏛️ 3. Bitcoin vs. Ouro e S&P 500")
+    try:
+        # 1. Função de busca e cache para Ativos Tradicionais
+        @st.cache_data(ttl=600)
+        def fetch_traditional_assets(_supabase_conn): 
+            if not _supabase_conn:
+                st.error("Conexão com Supabase indisponível.")
+                return pd.DataFrame()
+            response = _supabase_conn.table("traditional_assets_prices").select("timestamp, symbol, price_usd").execute()
+            df = pd.DataFrame(response.data)
+            # Limpeza e Preparação dos dados
+            df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce').dt.normalize()
+            df = df.rename(columns={'price_usd': 'price'})
+            df['price'] = pd.to_numeric(df['price'], errors='coerce')
+            # CORREÇÃO CRÍTICA: Limpa o símbolo para garantir que 'XAUUSD' seja reconhecido
+            df['symbol'] = df['symbol'].astype(str).str.strip() 
+            df.dropna(subset=['timestamp', 'price', 'symbol'], inplace=True) 
+            return df[['timestamp', 'symbol', 'price']]
+        # Busca os dados (Chama a função passando o objeto de conexão)
+        df_traditional = fetch_traditional_assets(supabase)
+        # 2. Prepara os dados do Bitcoin para a comparação
+        if df_btc_daily.empty:
+            st.warning("Dados do Bitcoin não carregados. Ignorando BTC.")
+            df_btc_comparison = pd.DataFrame()
+        else:
+            df_btc_comparison = df_btc_daily[['timestamp', 'price_usd']].copy()
+            df_btc_comparison = df_btc_comparison.rename(columns={'price_usd': 'price'})
+            df_btc_comparison['symbol'] = 'BTC'
+            df_btc_comparison['symbol'] = df_btc_comparison['symbol'].astype(str).str.strip()
+        # 3. Combina todos os ativos (BTC, SPY, XAUUSD)
+        df_all_assets = pd.concat([df_traditional, df_btc_comparison], ignore_index=True)
+        df_all_assets.sort_values(by='timestamp', inplace=True)
+        df_all_assets.dropna(subset=['price'], inplace=True)
+        df_all_assets['timestamp'] = pd.to_datetime(df_all_assets['timestamp']).dt.tz_localize(None)
+        # 3a. Ajusta a data de início do filtro para garantir que haja um ponto de partida para todos os ativos
+        min_date_available = df_all_assets['timestamp'].min()
+        start_date_ts = pd.to_datetime(start_date).tz_localize(None)
+        end_date_ts = pd.to_datetime(end_date).tz_localize(None)
+        # Garante que a data de início não seja anterior ao mínimo disponível
+        if start_date_ts < min_date_available:
+            start_date_ts = min_date_available
+            
+        # Filtra pelo período selecionado pelo usuário
+        df_all_assets = df_all_assets[
+            (df_all_assets['timestamp'] >= start_date_ts) & (df_all_assets['timestamp'] <= end_date_ts)
+        ].copy()
+        
+        # CORREÇÃO DUPLICIDADE: Remove duplicatas pela chave (timestamp, symbol)
+        df_all_assets.drop_duplicates(subset=['timestamp', 'symbol'], inplace=True)
+        # 4. Normaliza os preços para comparar retornos (Base 100):
+        # 4a. Agrupa e encontra o primeiro preço de cada ativo no período filtrado
+        df_all_assets['initial_price'] = df_all_assets.groupby('symbol')['price'].transform('first')
+        # 4b. Normaliza: (Preço Atual / Preço Inicial) * 100
+        df_all_assets['Retorno Normalizado (Base 100)'] = (
+            df_all_assets['price'] / df_all_assets['initial_price']
+        ) * 100
+        # 4c. Prepara para Plotly (DataFrame final)
+        df_chart = df_all_assets.rename(columns={'symbol': 'Ativo', 'timestamp': 'Data'})
+        df_chart = df_chart[['Data', 'Ativo', 'Retorno Normalizado (Base 100)']]
+        
+        
+        # Garante que há dados para plotar
+        if df_chart.empty or len(df_chart['Ativo'].unique()) < 3: 
+            st.warning(f"⚠️ Não há dados suficientes. Apenas {len(df_chart['Ativo'].unique())} ativos encontrados no período selecionado. Verifique os filtros de data e limpe o cache.")
+        else:
+            # 5. Cria o Gráfico de Linhas
+            fig = px.line(
+                df_chart, 
+                x="Data", 
+                y="Retorno Normalizado (Base 100)", 
+                color='Ativo',
+                title="Performance Comparada: Bitcoin vs. Ouro e S&P 500",
+                labels={"Data": "Data"},
+                color_discrete_map={
+                    'BTC': '#f7931a',
+                    'SPY': '#008000',
+                    'XAUUSD': '#FFD700'
+                }
+            )
+            
+            # CORREÇÃO DE VISUALIZAÇÃO: Força o Eixo Y para dar zoom (ajuste o range se necessário)
+            # Este ajuste é crucial para que a linha do Ouro, menos volátil, não seja achatada.
+            fig.update_yaxes(range=[90, 110])
+            fig.update_layout(
+                legend_title_text='Ativo',
+                annotations=[
+                    dict(
+                        xref='paper', yref='paper',
+                        x=0.0, y=-0.2,
+                        text='*Base 100: Todos os ativos são comparados a partir do seu preço no dia inicial DENTRO do período filtrado.',
+                        showarrow=False,
+                        font=dict(size=10, color="grey")
+                    )
+                ]
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Erro ao carregar comparação com Ativos Tradicionais: {e}")
+    st.markdown("---")
+    
+    
 # ==============================================================================
 # ABA 6
 # ==============================================================================
