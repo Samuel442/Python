@@ -253,7 +253,6 @@ with tab1:
         else:
             st.warning("⚠️ Dados de Capitalização de Mercado indisponíveis.")   
     st.markdown("---")
-    
     # --- SEÇÃO B: KPI’s SECUNDÁRIOS (Gauge + Volume) ---
     GRAPH_HEIGHT = 250
     col_gauge, col_volume = st.columns([1.2, 1.8])
@@ -286,8 +285,6 @@ with tab1:
             st.plotly_chart(fig_gauge, use_container_width=True, config={'displayModeBar': False})
         else:
             st.warning("⚠️ Dados de Sentimento indisponíveis.")
-
-
     # Volume de Negociação (Gráfico de Barras) 
     with col_volume:
         if not df_market.empty and 'total_volume' in df_market.columns:
@@ -588,21 +585,90 @@ with tab2:
         st.plotly_chart(fig_compare, use_container_width=True, config={'displayModeBar': False})
 
 
-# ================================================================
-# 📌 ABA 3 — Adoção e Uso
-# ================================================================
+# ==============================================================================
+# ABA 3 - ADOÇÃO E USO (COMPATÍVEL COM SUAS COLUNAS REAIS)
+# ==============================================================================
 with tab3:
+    st.markdown("### 🔗 3. Adoção e Uso do Bitcoin")
+    st.markdown("---")
 
-    st.markdown("<h2 style='text-align:center; color:white;'>Em breve</h2>", unsafe_allow_html=True)
-    st.write("")
+    # Carregando tabelas
+    df_btc = load_data_api("prices_btc")
+    df_global = load_data_api("market_global")
+    df_sentiment = load_data_api("sentiment")
+    if df_btc.empty or df_global.empty:
+        st.warning("Dados insuficientes para montar esta aba.")
+        st.stop()
 
+    # Filtro por data
+    df_btc_filtered = df_btc[(df_btc["timestamp"] >= start_date) &
+                             (df_btc["timestamp"] <= end_date)].copy()
+    df_global_filtered = df_global[(df_global["timestamp"] >= start_date) &
+                                   (df_global["timestamp"] <= end_date)].copy()
+    df_sentiment_filtered = df_sentiment[(df_sentiment["timestamp"] >= start_date) &
+                                         (df_sentiment["timestamp"] <= end_date)].copy()
 
+    # 1) VOLUME TOTAL DE NEGOCIAÇÃO
+    st.subheader("📊 Volume Total de Negociação")
+    if "total_volume" in df_global_filtered.columns:
+        fig = px.line(
+            df_global_filtered,
+            x="timestamp",
+            y="total_volume",
+            title="Volume total de negociação",
+            labels={"timestamp": "Data", "total_volume": "Volume"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("A coluna 'total_volume' não existe em market_global.")
+    st.markdown("---")
+
+    # ==============================================================================
+    # 2) MARKET CAP DO BITCOIN (total_market_cap)
+    # ==============================================================================
+    st.subheader("💰 Market Cap Total")
+    if "total_market_cap" in df_global_filtered.columns:
+        fig = px.line(
+            df_global_filtered,
+            x="timestamp",
+            y="total_market_cap",
+            title="Capitalização de Mercado (Market Cap)",
+            labels={"timestamp": "Data", "total_market_cap": "Market Cap"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("A coluna 'total_market_cap' não existe em market_global.")
+    st.markdown("---")
+
+    # 3) DOMINÂNCIA DO BITCOIN
+    st.subheader("🟠 Dominância do Bitcoin (%)")
+    if "btc_dominance" in df_global_filtered.columns:
+        fig = px.area(
+            df_global_filtered,
+            x="timestamp",
+            y="btc_dominance",
+            title="Dominância do BTC no Mercado (%)",
+            labels={"timestamp": "Data", "btc_dominance": "Dominância (%)"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("A coluna 'btc_dominance' não existe em market_global.")
+    st.markdown("---")
     
-
-
-
-
-
+    # 4) FEAR & GREED INDEX
+    st.subheader("😨 Fear & Greed Index")
+    if "fear_greed_index" in df_sentiment_filtered.columns:
+        fig = px.line(
+            df_sentiment_filtered,
+            x="timestamp",
+            y="fear_greed_index",
+            title="Índice de Sentimento (Fear & Greed)",
+            labels={"timestamp": "Data", "fear_greed_index": "Índice"}
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("A coluna 'fear_greed_index' não existe na tabela sentiment.")
+    st.markdown("---")
 
 
 
@@ -648,7 +714,6 @@ with tab4:
                     emoji = "🚀"
                     level_pt = "Ganância Extrema"
                     color = "#00FF7F"
-
                 # --- Card interpretativo (Mantido como você customizou) ---
                 st.markdown(
                     f"""
@@ -705,7 +770,7 @@ with tab4:
         st.error(f"Erro ao carregar sentimento: {e}")
     st.markdown("---")
 
-    # 📰 SEÇÃO 2 - Últimas Notícias de Mercado
+    # SEÇÃO 2 - Últimas Notícias de Mercado
     st.markdown("### 📰 Últimas Notícias de Mercado")
     try:
         df_news = load_data_api("news_events")
@@ -735,8 +800,6 @@ with tab4:
 
 
     
-
-
 
 # ==============================================================================
 # ABA 5 - COMPARATIVOS (Versão Final e Corrigida)
@@ -824,7 +887,6 @@ with tab5:
             )
             crypto_df_altcoins['symbol'] = crypto_df_altcoins['symbol'].str.split('_').str[0].str.upper()
             crypto_df = pd.concat([btc_df, crypto_df_altcoins], ignore_index=True)
-            
         else:
             crypto_df = btc_df.copy() 
     except Exception as e:
@@ -863,7 +925,6 @@ with tab5:
                 df_normalized['close'] / df_normalized['initial_close']
             ) * 100
             crypto_filtered = df_normalized
-            
             # --- Gráfico de Desempenho Normalizado ---
             fig_altcoin = px.line(
                 crypto_filtered,
@@ -943,7 +1004,6 @@ with tab5:
         df_chart = df_all_assets.rename(columns={'symbol': 'Ativo', 'timestamp': 'Data'})
         df_chart = df_chart[['Data', 'Ativo', 'Retorno Normalizado (Base 100)']]
         
-        
         # Garante que há dados para plotar
         if df_chart.empty or len(df_chart['Ativo'].unique()) < 3: 
             st.warning(f"⚠️ Não há dados suficientes. Apenas {len(df_chart['Ativo'].unique())} ativos encontrados no período selecionado. Verifique os filtros de data e limpe o cache.")
@@ -962,7 +1022,6 @@ with tab5:
                     'XAUUSD': '#FFD700'
                 }
             )
-            
             # CORREÇÃO DE VISUALIZAÇÃO: Força o Eixo Y para dar zoom (ajuste o range se necessário)
             # Este ajuste é crucial para que a linha do Ouro, menos volátil, não seja achatada.
             fig.update_yaxes(range=[90, 110])
@@ -985,7 +1044,190 @@ with tab5:
     
     
 # ==============================================================================
-# ABA 6
+# ABA 6 - RESUMO GERAL
 # ==============================================================================
 with tab6:
-    st.header("Em breve")
+
+    # BOTÃO PDF (somente visual, sem função ainda)
+    st.markdown(
+        """
+        <style>
+        /* Estilos do Botão Gerar PDF */
+        .pdf-btn {
+            position: absolute;
+            top: 90px;
+            right: 35px;
+            background-color: #4CAF50;
+            /* COR FORÇADA do texto → PRETO */
+            color: #000 !important;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: bold;
+            text-decoration: none !important;
+            z-index: 999;
+            transition: background-color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .pdf-btn:hover {
+            background-color: #45a049;
+            color: #000 !important; /* Mantém o texto PRETO no hover */
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        /* Remove cor padrão de links */
+        .pdf-btn:visited,
+        .pdf-btn:active,
+        .pdf-btn:focus {
+            color: #000 !important;
+        }
+        </style>
+        <a class="pdf-btn" href="#">📄 Gerar PDF</a>
+        """,
+        unsafe_allow_html=True
+    )
+    st.markdown("## 📘 Resumo Geral do Mercado")
+    st.markdown("Painel consolidado com os principais indicadores das abas anteriores.")
+    st.markdown("---")
+
+    # Carrega dados essenciais
+    df_btc = load_data_api("prices_btc")
+    df_global = load_data_api("market_global")
+    df_sentiment = load_data_api("sentiment")
+    df_news = load_data_api("news_events")
+    if df_btc.empty or df_global.empty:
+        st.warning("⚠️ Dados insuficientes para montar o resumo.")
+        st.stop()
+
+    # Ajustes de data
+    df_btc["timestamp"] = pd.to_datetime(df_btc["timestamp"])
+    df_global["timestamp"] = pd.to_datetime(df_global["timestamp"])
+    df_sentiment["timestamp"] = pd.to_datetime(df_sentiment["timestamp"])
+    df_btc_filtered = df_btc[
+        (df_btc["timestamp"] >= start_date) & (df_btc["timestamp"] <= end_date)
+    ].copy()
+    df_global_filtered = df_global[
+        (df_global["timestamp"] >= start_date) & (df_global["timestamp"] <= end_date)
+    ].copy()
+    df_sentiment_filtered = df_sentiment[
+        (df_sentiment["timestamp"] >= start_date) & (df_sentiment["timestamp"] <= end_date)
+    ].copy()
+
+    # MÉTRICAS PRINCIPAIS (3 cards)
+    st.markdown("### 📌 Indicadores Principais")
+    col1, col2, col3 = st.columns(3)
+    # --- Último preço BTC ---
+    last_btc = df_btc_filtered.iloc[-1]["price_usd"]
+    prev_btc = df_btc_filtered.iloc[-2]["price_usd"]
+    delta_btc = last_btc - prev_btc
+
+    col1.metric("Preço BTC (USD)", f"${last_btc:,.0f}", f"{delta_btc:+.0f}")
+
+    # --- Market Cap ---
+    if "total_market_cap" in df_global_filtered.columns:
+        last_mc = df_global_filtered.iloc[-1]["total_market_cap"]
+        prev_mc = df_global_filtered.iloc[-2]["total_market_cap"]
+        delta_mc = last_mc - prev_mc
+        col2.metric("Market Cap Cripto", f"${last_mc/1e12:.2f} T", f"{delta_mc/1e9:+.2f} B")
+    else:
+        col2.info("Sem Market Cap")
+    # --- Dominância BTC ---
+    if "btc_dominance" in df_global_filtered.columns:
+        last_dom = df_global_filtered.iloc[-1]["btc_dominance"]
+        prev_dom = df_global_filtered.iloc[-2]["btc_dominance"]
+        delta_dom = last_dom - prev_dom
+        col3.metric("Dominância BTC", f"{last_dom:.2f} %", f"{delta_dom:+.2f} pts")
+    else:
+        col3.info("Sem Dominância")
+    st.markdown("---")
+
+    # SENTIMENTO DO MERCADO
+    st.markdown("### 😨 Sentimento Atual (Fear & Greed)")
+    if not df_sentiment_filtered.empty:
+        last_sent = df_sentiment_filtered.iloc[-1]
+        value = last_sent["fear_greed_index"]
+        text = last_sent["sentiment_text"]
+        if value <= 25:
+            emoji, level, color = "😱", "Medo Extremo", "#FF4444"
+        elif value <= 50:
+            emoji, level, color = "😟", "Medo", "#FFAA00"
+        elif value <= 75:
+            emoji, level, color = "🙂", "Ganância", "#33FF66"
+        else:
+            emoji, level, color = "🚀", "Ganância Extrema", "#00FF99"
+        st.markdown(
+            f"""
+            <div style='background-color:{color}22; border-left:6px solid {color};
+                border-radius:8px; padding:12px;'>
+                <h3 style='color:{color};'>{emoji} {level}</h3>
+                <p style='color:white'>
+                    Índice atual: <b>{value}</b> <br>
+                    Interpretação: <b>{text}</b>
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    st.markdown("---")
+
+    # MINI GRÁFICOS (Sparkline) — Preço, Dominância, Volume
+    st.markdown("### 📈 Mini Gráficos Rápidos")
+    colA, colB, colC = st.columns(3)
+    # Preço BTC
+    with colA:
+        fig_price = px.line(
+            df_btc_filtered.tail(50),
+            x="timestamp", y="price_usd",
+            title="Preço BTC (Últimos dias)"
+        )
+        fig_price.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
+        st.plotly_chart(fig_price, use_container_width=True)
+    # Dominância
+    with colB:
+        if "btc_dominance" in df_global_filtered.columns:
+            fig_dom = px.line(
+                df_global_filtered.tail(50),
+                x="timestamp", y="btc_dominance",
+                title="Dominância BTC"
+            )
+            fig_dom.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
+            st.plotly_chart(fig_dom, use_container_width=True)
+        else:
+            st.info("Sem dados de dominância.")
+
+    # Volume
+    with colC:
+        if "total_volume" in df_global_filtered.columns:
+            fig_vol = px.area(
+                df_global_filtered.tail(50),
+                x="timestamp", y="total_volume",
+                title="Volume de Mercado"
+            )
+            fig_vol.update_layout(height=250, margin=dict(l=10, r=10, t=40, b=10))
+            st.plotly_chart(fig_vol, use_container_width=True)
+        else:
+            st.info("Sem volume.")
+    st.markdown("---")
+
+    # NOTÍCIAS RECENTES
+    st.markdown("### 📰 Últimas Notícias")
+    if not df_news.empty:
+        df_news["date"] = pd.to_datetime(df_news["date"])
+        df_news = df_news.sort_values("date", ascending=False).head(5)
+        for _, row in df_news.iterrows():
+            st.markdown(
+                f"""
+                <div style='background-color:#2d2d2d; padding:10px; margin-bottom:10px;
+                    border-radius:8px;'>
+                    <b style='color:#00BFFF'>{row['source'].upper()}</b><br>
+                    <a href='{row['link']}' style='color:#FFD700' target='_blank'>
+                        {row['headline']}
+                    </a><br>
+                    <span style='color:#ccc'>📅 {row['date'].strftime('%d/%m/%Y')}</span>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+    else:
+        st.info("Nenhuma notícia disponível.")
+    st.markdown("---")
+    st.success("Resumo completo carregado com sucesso!")
+
