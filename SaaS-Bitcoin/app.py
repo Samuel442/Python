@@ -4,7 +4,6 @@ from supabase import create_client, Client
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, timezone 
-from pdf_generator import generate_aba6_pdf_bytes
 
 
 # --- CONFIGURAÇÃO INICIAL E ESTILO ---
@@ -1043,8 +1042,6 @@ with tab5:
     
     
 
-# Caminho do executável wkhtmltopdf
-wkhtmltopdf_path = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
 # ==============================================================================
 # ABA 6 - RESUMO GERAL
 # ==============================================================================
@@ -1193,31 +1190,4 @@ with tab6:
     st.success("Resumo completo carregado com sucesso!")
     
             
-    # Botão PDF 
-    if st.button("📄 Gerar PDF (Baixar)"):
-        try:
-            figs_dict = {
-                "price": fig_price,
-                "dom": fig_dom,
-                "vol": fig_vol
-            }
-
-            pdf_bytes = generate_aba6_pdf_bytes(
-                df_btc_filtered,
-                df_global_filtered,
-                df_sentiment_filtered,
-                df_news,
-                figs=figs_dict,
-                wkhtmltopdf_path=wkhtmltopdf_path
-            )
-
-            st.download_button(
-                label="📥 Baixar PDF",
-                data=pdf_bytes,
-                file_name="resumo_aba6.pdf",
-                mime="application/pdf"
-            )
-
-        except Exception as e:
-            st.error(f"Erro ao gerar PDF: {e}")
-
+    
