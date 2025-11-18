@@ -4,6 +4,7 @@ from supabase import create_client, Client
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta, timezone 
+from pdf_generator import generate_aba6_pdf_bytes
 
 
 # --- CONFIGURAÇÃO INICIAL E ESTILO ---
@@ -623,9 +624,7 @@ with tab3:
         st.info("A coluna 'total_volume' não existe em market_global.")
     st.markdown("---")
 
-    # ==============================================================================
     # 2) MARKET CAP DO BITCOIN (total_market_cap)
-    # ==============================================================================
     st.subheader("💰 Market Cap Total")
     if "total_market_cap" in df_global_filtered.columns:
         fig = px.line(
@@ -1043,51 +1042,13 @@ with tab5:
     st.markdown("---")
     
     
+
+# Caminho do executável wkhtmltopdf
+wkhtmltopdf_path = r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe"
 # ==============================================================================
 # ABA 6 - RESUMO GERAL
 # ==============================================================================
 with tab6:
-
-    # BOTÃO PDF (somente visual, sem função ainda)
-    st.markdown(
-        """
-        <style>
-        /* Estilos do Botão Gerar PDF */
-        .pdf-btn {
-            position: absolute;
-            top: 90px;
-            right: 35px;
-            background-color: #4CAF50;
-            /* COR FORÇADA do texto → PRETO */
-            color: #000 !important;
-            padding: 8px 16px;
-            border-radius: 8px;
-            font-weight: bold;
-            text-decoration: none !important;
-            z-index: 999;
-            transition: background-color 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .pdf-btn:hover {
-            background-color: #45a049;
-            color: #000 !important; /* Mantém o texto PRETO no hover */
-            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-        }
-        /* Remove cor padrão de links */
-        .pdf-btn:visited,
-        .pdf-btn:active,
-        .pdf-btn:focus {
-            color: #000 !important;
-        }
-        </style>
-        <a class="pdf-btn" href="#">📄 Gerar PDF</a>
-        """,
-        unsafe_allow_html=True
-    )
-    st.markdown("## 📘 Resumo Geral do Mercado")
-    st.markdown("Painel consolidado com os principais indicadores das abas anteriores.")
-    st.markdown("---")
-
     # Carrega dados essenciais
     df_btc = load_data_api("prices_btc")
     df_global = load_data_api("market_global")
@@ -1230,4 +1191,33 @@ with tab6:
         st.info("Nenhuma notícia disponível.")
     st.markdown("---")
     st.success("Resumo completo carregado com sucesso!")
+    
+            
+    # Botão PDF 
+    if st.button("📄 Gerar PDF (Baixar)"):
+        try:
+            figs_dict = {
+                "price": fig_price,
+                "dom": fig_dom,
+                "vol": fig_vol
+            }
+
+            pdf_bytes = generate_aba6_pdf_bytes(
+                df_btc_filtered,
+                df_global_filtered,
+                df_sentiment_filtered,
+                df_news,
+                figs=figs_dict,
+                wkhtmltopdf_path=wkhtmltopdf_path
+            )
+
+            st.download_button(
+                label="📥 Baixar PDF",
+                data=pdf_bytes,
+                file_name="resumo_aba6.pdf",
+                mime="application/pdf"
+            )
+
+        except Exception as e:
+            st.error(f"Erro ao gerar PDF: {e}")
 
